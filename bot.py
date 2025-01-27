@@ -29,6 +29,8 @@ class OasisAI:
         self.proxies = []
         self.proxy_index = 0
         self.account_proxies = {}
+        self.providers_estabilished = 0
+        self.total_providers = 0
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -213,6 +215,20 @@ class OasisAI:
             f"{Fore.CYAN + Style.BRIGHT}]{Style.RESET_ALL}"
         )
 
+    async def print_providers_estabilished(self):
+        while True:
+            print(
+                f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                f"{Fore.GREEN + Style.BRIGHT}{self.providers_estabilished}{Style.RESET_ALL}"
+                f"{Fore.CYAN + Style.BRIGHT} of {Style.RESET_ALL}"
+                f"{Fore.BLUE + Style.BRIGHT}{self.total_providers}{Style.RESET_ALL}"
+                f"{Fore.CYAN + Style.BRIGHT} Providerss Connection Estabilished... {Style.RESET_ALL}",
+                end="\r",
+                flush=True
+            )
+            await asyncio.sleep(10)
+
     def print_question(self):
         while True:
             try:
@@ -234,9 +250,8 @@ class OasisAI:
             except ValueError:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
             
-    async def connect_websocket(self, email: str, provider_id: str, proxy=None):
+    async def connect_websocket(self, email: str, provider_id: str, use_proxy: bool, proxy=None):
         wss_url = f"wss://ws.oasis.ai/?token={provider_id}&version=0.1.20&platform=extension"
-        system_data = self.generate_random_system_data()
         connected = False
 
         while True:
@@ -244,96 +259,108 @@ class OasisAI:
             session = ClientSession(connector=connector, timeout=ClientTimeout(total=60))
             try:
                 async with session.ws_connect(wss_url, headers=self.headers) as wss:
-
+                    async def send_heartbeat():
+                        while True:
+                            heartbeat_data = {
+                                "id": self.generate_random_id(),
+                                "type": "heartbeat",
+                                "data": {
+                                    "version": "0.1.7",
+                                    "mostRecentModel": "unknown",
+                                    "status": "active"
+                                }
+                            }
+                            await wss.send_json(heartbeat_data)
+                            self.print_message(email, proxy, Fore.WHITE, 
+                                f"Provider {self.mask_account(provider_id)}"
+                                f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                                f"{Fore.GREEN + Style.BRIGHT}Sent Heartbeat Success{Style.RESET_ALL}"
+                            )
+                            await asyncio.sleep(60)
+   
                     if not connected:
+                        system_data = self.generate_random_system_data()
                         await wss.send_json(system_data)
                         self.print_message(email, proxy, Fore.WHITE, 
-                            f"Provider {self.mask_account(provider_id)} "
+                            f"Provider {self.mask_account(provider_id)}"
                             f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                             f"{Fore.GREEN + Style.BRIGHT}Websocket Is Connected{Style.RESET_ALL}"
                         )
                         connected = True
+                        send_ping = asyncio.create_task(send_heartbeat())
 
-                    if connected:
-                        async def send_heartbeat():
-                            while not wss.closed:
-                                try:
-                                    heartbeat_data = {
-                                        "id": self.generate_random_id(),
-                                        "type": "heartbeat",
-                                        "data": {
-                                            "version": "0.1.7",
-                                            "mostRecentModel": "unknown",
-                                            "status": "active"
-                                        }
-                                    }
-                                    await wss.send_json(heartbeat_data)
-                                    self.print_message(email, proxy, Fore.WHITE, 
-                                        f"Provider {self.mask_account(provider_id)} "
-                                        f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.GREEN + Style.BRIGHT}Sent Heartbeat Success{Style.RESET_ALL}"
-                                    )
-
-                                except Exception as e:
-                                    break
-
-                                await asyncio.sleep(60)
-
-                        ping = asyncio.create_task(send_heartbeat())
-
+                    while connected:
                         try:
-                            async for msg in wss:
-                                message = json.loads(msg.data)
-                                if message.get("type") == "serverMetrics":
-                                    credits_earned = message["data"].get("creditsEarned")
-                                    total_uptime = message["data"].get("totalUptime")
+                            response = await wss.receive_json()
+                            if response.get("type") == "updateSchedule":
+                                self.print_message(email, proxy, Fore.WHITE, 
+                                    f"Provider {self.mask_account(provider_id)}"
+                                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                                    f"{Fore.BLUE + Style.BRIGHT}Schedule Updated{Style.RESET_ALL}"
+                                )
 
-                                    self.print_message(email, proxy, Fore.WHITE, 
-                                        f"Provider {self.mask_account(provider_id)} "
-                                        f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT}Earning:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {credits_earned} PTS {Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Uptime: {Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT}{total_uptime}{Style.RESET_ALL}"
-                                    )
-                                elif message.get("type") == "acknowledged":
-                                    self.print_message(email, proxy, Fore.WHITE, 
-                                        f"Provider {self.mask_account(provider_id)} "
-                                        f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.BLUE + Style.BRIGHT}System Updated{Style.RESET_ALL}"
-                                    )
-                                elif message.get("type") == "error" and message["data"].get("code") == "Invalid body":
-                                    system_data = self.generate_random_system_data()
-                                    await wss.send_json(system_data)
+                            elif response.get("type") == "serverMetrics":
+                                credits_earned = response["data"].get("creditsEarned")
+                                total_uptime = response["data"].get("totalUptime")
+                                self.print_message(email, proxy, Fore.WHITE, 
+                                    f"Provider {self.mask_account(provider_id)} "
+                                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                                    f"{Fore.CYAN + Style.BRIGHT}Earning:{Style.RESET_ALL}"
+                                    f"{Fore.WHITE + Style.BRIGHT} {credits_earned} PTS {Style.RESET_ALL}"
+                                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
+                                    f"{Fore.CYAN + Style.BRIGHT} Uptime: {Style.RESET_ALL}"
+                                    f"{Fore.WHITE + Style.BRIGHT}{total_uptime}{Style.RESET_ALL}"
+                                )
+
+                            elif response.get("type") == "acknowledged":
+                                self.print_message(email, proxy, Fore.WHITE, 
+                                    f"Provider {self.mask_account(provider_id)}"
+                                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                                    f"{Fore.BLUE + Style.BRIGHT}System Updated{Style.RESET_ALL}"
+                                )
+                                self.providers_estabilished += 1
+
+                            elif response.get("type") == "error" and response["data"].get("code") == "Invalid body":
+                                system_data = self.generate_random_system_data()
+                                await wss.send_json(system_data)
+
+                                self.print_message(email, proxy, Fore.WHITE, 
+                                    f"Provider {self.mask_account(provider_id)}"
+                                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                                    f"{Fore.YELLOW + Style.BRIGHT}Invalid Body{Style.RESET_ALL}"
+                                )
+                            else:
+                                print(response)
 
                         except Exception as e:
-                            self.print_message(email, proxy, Fore.WHITE, 
-                            f"Provider {self.mask_account(provider_id)} "
-                                f"{Fore.YELLOW + Style.BRIGHT}Websocket Connection Closed{Style.RESET_ALL}"
-                            )
-                        finally:
-                            if not wss.closed:
-                                await wss.close()
-                            ping.cancel()
-                            try:
-                                await ping
-                            except asyncio.CancelledError:
-                                pass
+                            if send_ping:
+                                send_ping.cancel()
+                                try:
+                                    await send_ping
+                                except asyncio.CancelledError:
+                                    self.print_message(email, proxy, Fore.WHITE, 
+                                        f"Provider {self.mask_account(provider_id)}"
+                                        f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                                        f"{Fore.YELLOW + Style.BRIGHT}Websocket Connection Closed{Style.RESET_ALL}"
+                                    )
+
+                            connected = False
+                            self.providers_estabilished -= 1
+                            break
 
             except Exception as e:
-                connected = False
                 self.print_message(email, proxy, Fore.WHITE, 
                     f"Provider {self.mask_account(provider_id)}"
                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                     f"{Fore.RED + Style.BRIGHT} Websocket Not Connected: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
                 )
+                proxy = self.rotate_proxy_for_account(email) if use_proxy else None
                 await asyncio.sleep(5)
 
             except asyncio.CancelledError:
                 self.print_message(email, proxy, Fore.WHITE, 
-                    f"Provider {self.mask_account(provider_id)} "
+                    f"Provider {self.mask_account(provider_id)}"
                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}Websocket Closed{Style.RESET_ALL}"
                 )
@@ -345,7 +372,7 @@ class OasisAI:
         tasks = []
         for provider in providers:
             proxy = self.rotate_proxy_for_account(email) if use_proxy else None
-            tasks.append(self.connect_websocket(email, provider['Provider_ID'], proxy))
+            tasks.append(self.connect_websocket(email, provider['Provider_ID'], use_proxy, proxy))
         
         await asyncio.gather(*tasks)
     
@@ -382,7 +409,9 @@ class OasisAI:
 
                     if email and providers:
                         tasks.append(self.process_accounts(email, providers, use_proxy))
+                        self.total_providers += len(providers)
 
+                tasks.append(self.print_providers_estabilished())
                 await asyncio.gather(*tasks)
                 await asyncio.sleep(10)
 
