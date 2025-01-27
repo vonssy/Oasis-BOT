@@ -28,6 +28,7 @@ class OasisAI:
         }
         self.proxies = []
         self.proxy_index = 0
+        self.account_proxies = {}
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -54,61 +55,59 @@ class OasisAI:
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
     
-    async def load_auto_proxies(self):
-        url = "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt"
+    async def load_proxies(self, use_proxy_choice: int):
+        filename = "proxy.txt"
         try:
-            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
-                async with session.get(url=url) as response:
-                    response.raise_for_status()
-                    content = await response.text()
-                    with open('proxy.txt', 'w') as f:
-                        f.write(content)
-
-                    self.proxies = content.splitlines()
-                    if not self.proxies:
-                        self.log(f"{Fore.RED + Style.BRIGHT}No proxies found in the downloaded list!{Style.RESET_ALL}")
-                        return
-                    
-                    self.log(f"{Fore.GREEN + Style.BRIGHT}Proxies successfully downloaded.{Style.RESET_ALL}")
-                    self.log(f"{Fore.YELLOW + Style.BRIGHT}Loaded {len(self.proxies)} proxies.{Style.RESET_ALL}")
-                    self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
-                    await asyncio.sleep(3)
-        except Exception as e:
-            self.log(f"{Fore.RED + Style.BRIGHT}Failed to load proxies: {e}{Style.RESET_ALL}")
-            return []
-        
-    async def load_manual_proxy(self):
-        try:
-            if not os.path.exists('manual_proxy.txt'):
-                print(f"{Fore.RED + Style.BRIGHT}Proxy file 'manual_proxy.txt' not found!{Style.RESET_ALL}")
+            if use_proxy_choice == 1:
+                async with ClientSession(timeout=ClientTimeout(total=30)) as session:
+                    async with session.get("https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt") as response:
+                        response.raise_for_status()
+                        content = await response.text()
+                        with open(filename, 'w') as f:
+                            f.write(content)
+                        self.proxies = content.splitlines()
+            else:
+                if not os.path.exists(filename):
+                    self.log(f"{Fore.RED + Style.BRIGHT}File {filename} Not Found.{Style.RESET_ALL}")
+                    return
+                with open(filename, 'r') as f:
+                    self.proxies = f.read().splitlines()
+            
+            if not self.proxies:
+                self.log(f"{Fore.RED + Style.BRIGHT}No Proxies Found.{Style.RESET_ALL}")
                 return
 
-            with open('manual_proxy.txt', "r") as f:
-                proxies = f.read().splitlines()
-
-            self.proxies = proxies
-            self.log(f"{Fore.YELLOW + Style.BRIGHT}Loaded {len(self.proxies)} proxies.{Style.RESET_ALL}")
-            self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
-            await asyncio.sleep(3)
+            self.log(
+                f"{Fore.GREEN + Style.BRIGHT}Proxies Total  : {Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT}{len(self.proxies)}{Style.RESET_ALL}"
+            )
+        
         except Exception as e:
-            print(f"{Fore.RED + Style.BRIGHT}Failed to load manual proxies: {e}{Style.RESET_ALL}")
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Proxies: {e}{Style.RESET_ALL}")
             self.proxies = []
 
     def check_proxy_schemes(self, proxies):
         schemes = ["http://", "https://", "socks4://", "socks5://"]
         if any(proxies.startswith(scheme) for scheme in schemes):
             return proxies
-        
-        return f"http://{proxies}" # Change with yours proxy schemes if your proxy not have schemes [http:// or socks5://]
+        return f"http://{proxies}"
 
-    def get_next_proxy(self):
+    def get_next_proxy_for_account(self, account):
+        if account not in self.account_proxies:
+            if not self.proxies:
+                return None
+            proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
+            self.account_proxies[account] = proxy
+            self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
+        return self.account_proxies[account]
+
+    def rotate_proxy_for_account(self, account):
         if not self.proxies:
-            self.log(f"{Fore.RED + Style.BRIGHT}No proxies available!{Style.RESET_ALL}")
             return None
-
-        proxy = self.proxies[self.proxy_index]
+        proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
+        self.account_proxies[account] = proxy
         self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
-        return self.check_proxy_schemes(proxy)
+        return proxy
     
     def load_accounts(self):
         try:
@@ -200,34 +199,58 @@ class OasisAI:
         
         mask_account = account[:3] + '*' * 3 + account[-3:]
         return mask_account
+
+    def print_message(self, account, proxy, color, message):
+        self.log(
+            f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
+            f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(account)} {Style.RESET_ALL}"
+            f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
+            f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
+            f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
+            f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+            f"{Fore.CYAN + Style.BRIGHT}Status:{Style.RESET_ALL}"
+            f"{color + Style.BRIGHT} {message} {Style.RESET_ALL}"
+            f"{Fore.CYAN + Style.BRIGHT}]{Style.RESET_ALL}"
+        )
+
+    def print_question(self):
+        while True:
+            try:
+                print("1. Run With Monosans Proxy")
+                print("2. Run With Private Proxy")
+                print("3. Run Without Proxy")
+                choose = int(input("Choose [1/2/3] -> ").strip())
+
+                if choose in [1, 2, 3]:
+                    proxy_type = (
+                        "Run With Monosans Proxy" if choose == 1 else 
+                        "Run With Private Proxy" if choose == 2 else 
+                        "Run Without Proxy"
+                    )
+                    print(f"{Fore.GREEN + Style.BRIGHT}{proxy_type} Selected.{Style.RESET_ALL}")
+                    return choose
+                else:
+                    print(f"{Fore.RED + Style.BRIGHT}Please enter either 1, 2 or 3.{Style.RESET_ALL}")
+            except ValueError:
+                print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
             
     async def connect_websocket(self, email: str, provider_id: str, proxy=None):
-        wss_url = f"wss://ws.oasis.ai/?token={provider_id}"
+        wss_url = f"wss://ws.oasis.ai/?token={provider_id}&version=0.1.20&platform=extension"
         system_data = self.generate_random_system_data()
         connected = False
 
         while True:
             connector = ProxyConnector.from_url(proxy) if proxy else None
             session = ClientSession(connector=connector, timeout=ClientTimeout(total=60))
-
             try:
                 async with session.ws_connect(wss_url, headers=self.headers) as wss:
 
                     if not connected:
                         await wss.send_json(system_data)
-                        self.log(
-                            f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                            f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
+                        self.print_message(email, proxy, Fore.WHITE, 
+                            f"Provider {self.mask_account(provider_id)} "
                             f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
-                            f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT} Status: {Style.RESET_ALL}"
                             f"{Fore.GREEN + Style.BRIGHT}Websocket Is Connected{Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
                         )
                         connected = True
 
@@ -245,19 +268,10 @@ class OasisAI:
                                         }
                                     }
                                     await wss.send_json(heartbeat_data)
-                                    self.log(
-                                        f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
+                                    self.print_message(email, proxy, Fore.WHITE, 
+                                        f"Provider {self.mask_account(provider_id)} "
                                         f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Status: {Style.RESET_ALL}"
-                                        f"{Fore.GREEN + Style.BRIGHT}Heartbeat Sended{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
+                                        f"{Fore.GREEN + Style.BRIGHT}Sent Heartbeat Success{Style.RESET_ALL}"
                                     )
 
                                 except Exception as e:
@@ -271,60 +285,32 @@ class OasisAI:
                             async for msg in wss:
                                 message = json.loads(msg.data)
                                 if message.get("type") == "serverMetrics":
-                                    total_uptime = message["data"].get("totalUptime")
                                     credits_earned = message["data"].get("creditsEarned")
+                                    total_uptime = message["data"].get("totalUptime")
 
-                                    self.log(
-                                        f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
+                                    self.print_message(email, proxy, Fore.WHITE, 
+                                        f"Provider {self.mask_account(provider_id)} "
                                         f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
+                                        f"{Fore.CYAN + Style.BRIGHT}Earning:{Style.RESET_ALL}"
+                                        f"{Fore.WHITE + Style.BRIGHT} {credits_earned} PTS {Style.RESET_ALL}"
                                         f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Credits: {Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT}{credits_earned} PTS{Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT}Uptime:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {total_uptime} {Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT}]{Style.RESET_ALL}"
+                                        f"{Fore.CYAN + Style.BRIGHT} Uptime: {Style.RESET_ALL}"
+                                        f"{Fore.WHITE + Style.BRIGHT}{total_uptime}{Style.RESET_ALL}"
                                     )
                                 elif message.get("type") == "acknowledged":
-                                    data = message['data'].get('message')
-                                    self.log(
-                                        f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
+                                    self.print_message(email, proxy, Fore.WHITE, 
+                                        f"Provider {self.mask_account(provider_id)} "
                                         f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
-                                        f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} Received Message: {Style.RESET_ALL}"
-                                        f"{Fore.BLUE + Style.BRIGHT}{data}{Style.RESET_ALL}"
-                                        f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
+                                        f"{Fore.BLUE + Style.BRIGHT}System Updated{Style.RESET_ALL}"
                                     )
                                 elif message.get("type") == "error" and message["data"].get("code") == "Invalid body":
                                     system_data = self.generate_random_system_data()
                                     await wss.send_json(system_data)
 
                         except Exception as e:
-                            self.log(
-                                f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                                f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                                f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
-                                f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                                f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
-                                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                                f"{Fore.CYAN + Style.BRIGHT} Status: {Style.RESET_ALL}"
+                            self.print_message(email, proxy, Fore.WHITE, 
+                            f"Provider {self.mask_account(provider_id)} "
                                 f"{Fore.YELLOW + Style.BRIGHT}Websocket Connection Closed{Style.RESET_ALL}"
-                                f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
                             )
                         finally:
                             if not wss.closed:
@@ -336,70 +322,29 @@ class OasisAI:
                                 pass
 
             except Exception as e:
-                self.log(
-                    f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
-                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT} Status: {Style.RESET_ALL}"
-                    f"{Fore.RED + Style.BRIGHT}Websocket Not Connected{Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
-                )
                 connected = False
+                self.print_message(email, proxy, Fore.WHITE, 
+                    f"Provider {self.mask_account(provider_id)}"
+                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                    f"{Fore.RED + Style.BRIGHT} Websocket Not Connected: {Style.RESET_ALL}"
+                    f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
+                )
                 await asyncio.sleep(5)
 
             except asyncio.CancelledError:
-                self.log(
-                    f"{Fore.CYAN + Style.BRIGHT}[ Account:{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(email)} {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT} Proxy: {Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT}{proxy}{Style.RESET_ALL}"
+                self.print_message(email, proxy, Fore.WHITE, 
+                    f"Provider {self.mask_account(provider_id)} "
                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT}Provider ID:{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(provider_id)} {Style.RESET_ALL}"
-                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT} Status: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}Websocket Closed{Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
                 )
                 break
             finally:
                 await session.close()
         
-    def question(self):
-        while True:
-            try:
-                print(f"{Fore.WHITE+Style.BRIGHT}1. Run With Auto Proxy{Style.RESET_ALL}")
-                print(f"{Fore.WHITE+Style.BRIGHT}2. Run With Manual Proxy{Style.RESET_ALL}")
-                print(f"{Fore.WHITE+Style.BRIGHT}3. Run Without Proxy{Style.RESET_ALL}")
-                use_proxy = int(input(f"{Fore.BLUE+Style.BRIGHT}Choose [1/2/3] -> {Style.RESET_ALL}").strip())
-
-                if use_proxy in [1, 2, 3]:
-                    proxy_type = (
-                        "With Auto Proxy" if use_proxy == 1 else 
-                        "With Manual Proxy" if use_proxy == 2 else 
-                        "Without Proxy"
-                    )
-                    print(f"{Fore.GREEN+Style.BRIGHT}Run {proxy_type} Selected.{Style.RESET_ALL}")
-                    return use_proxy
-                else:
-                    print(f"{Fore.RED+Style.BRIGHT}Please enter either 1, 2 or 3.{Style.RESET_ALL}")
-            except ValueError:
-                print(f"{Fore.RED+Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
-        
     async def process_accounts(self, email: str, providers: list, use_proxy: bool):
         tasks = []
         for provider in providers:
-            proxy = None
-            if use_proxy:
-                proxy = self.get_next_proxy()
-            
+            proxy = self.rotate_proxy_for_account(email) if use_proxy else None
             tasks.append(self.connect_websocket(email, provider['Provider_ID'], proxy))
         
         await asyncio.gather(*tasks)
@@ -408,10 +353,10 @@ class OasisAI:
         try:
             accounts = self.load_accounts()
             if not accounts:
-                self.log(f"{Fore.RED}No accounts loaded from 'accounts.json'.{Style.RESET_ALL}")
+                self.log(f"{Fore.RED}No Accounts Loaded.{Style.RESET_ALL}")
                 return
 
-            use_proxy_choice = self.question()
+            use_proxy_choice = self.print_question()
 
             use_proxy = False
             if use_proxy_choice in [1, 2]:
@@ -423,13 +368,12 @@ class OasisAI:
                 f"{Fore.GREEN + Style.BRIGHT}Account's Total: {Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT}{len(accounts)}{Style.RESET_ALL}"
             )
+
+            if use_proxy:
+                await self.load_proxies(use_proxy_choice)
+
             self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
 
-            if use_proxy and use_proxy_choice == 1:
-                await self.load_auto_proxies()
-            elif use_proxy and use_proxy_choice == 2:
-                await self.load_manual_proxy()
-            
             while True:
                 tasks = []
                 for account in accounts:
