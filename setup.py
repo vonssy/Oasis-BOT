@@ -340,13 +340,29 @@ class OasisAI:
             else:
                 providers = await self.provider_lists(email, token, proxy)
                 if providers:
+                    count = 0
                     for provider in providers:
                         id = provider['id']
 
-                        provider_id = await self.provider_token(email, token, id, proxy)
-                        if provider_id:
-                            account["Providers"].append({"Provider_ID": provider_id})
-                            success_count += 1
+                        if provider:
+                            count += 1
+                            print(
+                                f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                                f"{Fore.CYAN + Style.BRIGHT}Processing:{Style.RESET_ALL}"
+                                f"{Fore.GREEN + Style.BRIGHT} {count} {Style.RESET_ALL}"
+                                f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
+                                f"{Fore.BLUE + Style.BRIGHT} {len(providers)} {Style.RESET_ALL}",
+                                end="\r",
+                                flush=True
+                            )
+
+                            provider_id = await self.provider_token(email, token, id, proxy)
+                            if provider_id:
+                                if not any(provider["Provider_ID"] == provider_id for provider in account["Providers"]):
+                                    account["Providers"].append({"Provider_ID": provider_id})
+                                    
+                                success_count += 1
 
                     self.save_accounts(accounts)
                     self.print_message(email, proxy, Fore.GREEN, 
