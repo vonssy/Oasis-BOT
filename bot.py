@@ -223,7 +223,7 @@ class OasisAI:
                 f"{Fore.GREEN + Style.BRIGHT}{self.providers_estabilished}{Style.RESET_ALL}"
                 f"{Fore.CYAN + Style.BRIGHT} of {Style.RESET_ALL}"
                 f"{Fore.BLUE + Style.BRIGHT}{self.total_providers}{Style.RESET_ALL}"
-                f"{Fore.CYAN + Style.BRIGHT} Providerss Connection Estabilished... {Style.RESET_ALL}",
+                f"{Fore.CYAN + Style.BRIGHT} Providers Connection Estabilished... {Style.RESET_ALL}",
                 end="\r",
                 flush=True
             )
