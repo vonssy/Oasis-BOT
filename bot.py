@@ -287,6 +287,7 @@ class OasisAI:
                             f"{Fore.GREEN + Style.BRIGHT}Websocket Is Connected{Style.RESET_ALL}"
                         )
                         connected = True
+                        self.providers_estabilished += 1
                         send_ping = asyncio.create_task(send_heartbeat())
 
                     while connected:
@@ -318,7 +319,6 @@ class OasisAI:
                                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                                     f"{Fore.BLUE + Style.BRIGHT}System Updated{Style.RESET_ALL}"
                                 )
-                                self.providers_estabilished += 1
 
                             elif response.get("type") == "error" and response["data"].get("code") == "Invalid body":
                                 system_data = self.generate_random_system_data()
@@ -329,8 +329,6 @@ class OasisAI:
                                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                                     f"{Fore.YELLOW + Style.BRIGHT}Invalid Body{Style.RESET_ALL}"
                                 )
-                            else:
-                                print(response)
 
                         except Exception as e:
                             if send_ping:
