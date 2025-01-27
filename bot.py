@@ -303,7 +303,7 @@ class OasisAI:
                                 credits_earned = response["data"].get("creditsEarned")
                                 total_uptime = response["data"].get("totalUptime")
                                 self.print_message(email, proxy, Fore.WHITE, 
-                                    f"Provider {self.mask_account(provider_id)} "
+                                    f"Provider {self.mask_account(provider_id)}"
                                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                                     f"{Fore.CYAN + Style.BRIGHT}Earning:{Style.RESET_ALL}"
                                     f"{Fore.WHITE + Style.BRIGHT} {credits_earned} PTS {Style.RESET_ALL}"
