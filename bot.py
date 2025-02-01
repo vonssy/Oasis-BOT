@@ -331,6 +331,12 @@ class OasisAI:
                                 )
 
                         except Exception as e:
+                            self.print_message(email, proxy, Fore.WHITE, 
+                                f"Provider {self.mask_account(provider_id)} "
+                                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
+                                f"{Fore.YELLOW + Style.BRIGHT} Websocket Connection Closed: {Style.RESET_ALL}"
+                                f"{Fore.RED + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
+                            )
                             if send_ping:
                                 send_ping.cancel()
                                 try:
@@ -339,7 +345,7 @@ class OasisAI:
                                     self.print_message(email, proxy, Fore.WHITE, 
                                         f"Provider {self.mask_account(provider_id)}"
                                         f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                                        f"{Fore.YELLOW + Style.BRIGHT}Websocket Connection Closed{Style.RESET_ALL}"
+                                        f"{Fore.YELLOW + Style.BRIGHT}Sent Heartbeat Cancelled{Style.RESET_ALL}"
                                     )
 
                             connected = False
@@ -348,8 +354,8 @@ class OasisAI:
 
             except Exception as e:
                 self.print_message(email, proxy, Fore.WHITE, 
-                    f"Provider {self.mask_account(provider_id)}"
-                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                    f"Provider {self.mask_account(provider_id)} "
+                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                     f"{Fore.RED + Style.BRIGHT} Websocket Not Connected: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
                 )
