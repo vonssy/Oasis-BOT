@@ -6,7 +6,7 @@ from aiohttp_socks import ProxyConnector
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
-import asyncio, json, random, os, pytz
+import asyncio, json, uuid, random, os, pytz
 
 wib = pytz.timezone('Asia/Jakarta')
 
@@ -119,12 +119,35 @@ class OasisAI:
             return []
         except json.JSONDecodeError:
             return []
+
+    def generate_random_gpu_info(self):
+        renderers = [
+            "ANGLE (AMD, AMD Radeon(TM) Graphics (0x00001638) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            "ANGLE (NVIDIA, GeForce GTX 1080 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            "ANGLE (Intel, Iris Xe Graphics (0x00008086) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+        ]
+        vendors = ["Google Inc. (AMD)", "NVIDIA", "Intel"]
+        return {
+            "renderer":random.choice(renderers),
+            "vendor":random.choice(vendors)
+        }
         
-    def generate_random_id(self, length=26):
-        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return ''.join(random.choice(characters) for _ in range(length))
+    def generate_random_memory_info(self):
+        return {
+            "availableCapacity":random.randint(1000000000, 2000000000),
+            "capacity":random.randint(2000000000, 3000000000)
+        }
+    
+    def generate_random_operating_system(self):
+        os_list = [ "windows","linux","macOS"]
+        return random.choice(os_list)
+
+    def generate_random_machine_id(self):
+        machine_id = str(uuid.uuid4().hex)
+        return machine_id
     
     def generate_random_cpu_info(self):
+        features = ["mmx", "sse", "sse2", "sse3", "ssse3", "sse4_1", "sse4_2", "avx"]
         cpu_models = [
             "AMD Ryzen 5 5600G with Radeon Graphics",
             "Intel Core i7-9700K",
@@ -137,8 +160,6 @@ class OasisAI:
             "Intel Core i9-11900K",
             "AMD Ryzen 3 3200G"
         ]
-
-        features = ["mmx", "sse", "sse2", "sse3", "ssse3", "sse4_1", "sse4_2", "avx"]
         num_of_processors = random.choice([4, 8, 16, 32])
 
         processors = []
@@ -160,37 +181,22 @@ class OasisAI:
             "processors": processors,
             "temperatures": []
         }
-
-    def generate_random_gpu_info(self):
-        renderers = [
-            "ANGLE (AMD, AMD Radeon(TM) Graphics (0x00001638) Direct3D11 vs_5_0 ps_5_0, D3D11)",
-            "ANGLE (NVIDIA, GeForce GTX 1080 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
-            "ANGLE (Intel, Iris Xe Graphics (0x00008086) Direct3D11 vs_5_0 ps_5_0, D3D11)"
-        ]
-        vendors = ["Google Inc. (AMD)", "NVIDIA", "Intel"]
-        return {
-            "renderer": random.choice(renderers),
-            "vendor": random.choice(vendors)
-        }
-
-    def generate_random_operating_system(self):
-        os_list = ["windows", "linux", "macOS"]
-        return random.choice(os_list)
-
+    
+    def generate_random_id(self):
+        characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return ''.join(random.choice(characters) for _ in range(26))
+    
     def generate_random_system_data(self):
         return {
-            "id": self.generate_random_id(26),
-            "type": "system",
-            "data": {
-                "gpuInfo": self.generate_random_gpu_info(),
-                "memoryInfo": {
-                    "availableCapacity": random.randint(1000000000, 2000000000),
-                    "capacity": random.randint(2000000000, 3000000000)
-                },
-                "operatingSystem": self.generate_random_operating_system(),
-                "machineId": self.generate_random_id(32).lower(),
-                "cpuInfo": self.generate_random_cpu_info()
-            }
+            "type":"system",
+            "data":{
+                "gpuInfo":self.generate_random_gpu_info(),
+                "memoryInfo":self.generate_random_memory_info(),
+                "operatingSystem":self.generate_random_operating_system(),
+                "machineId":self.generate_random_machine_id(),
+                "cpuInfo":self.generate_random_cpu_info(),
+            },
+            "id":self.generate_random_id()
         }
     
     def mask_account(self, account):
@@ -262,13 +268,14 @@ class OasisAI:
                     async def send_heartbeat():
                         while True:
                             heartbeat_data = {
-                                "id": self.generate_random_id(),
                                 "type": "heartbeat",
                                 "data": {
-                                    "version": "0.1.7",
-                                    "mostRecentModel": "unknown",
-                                    "status": "active"
-                                }
+                                    "version":"0.1.20",
+                                    "mostRecentModel":"unknown",
+                                    "status":"active",
+                                    "inferenceState":True
+                                },
+                                "id":self.generate_random_id()
                             }
                             await wss.send_json(heartbeat_data)
                             self.print_message(email, proxy, Fore.WHITE, 
@@ -323,7 +330,6 @@ class OasisAI:
                             elif response.get("type") == "error" and response["data"].get("code") == "Invalid body":
                                 system_data = self.generate_random_system_data()
                                 await wss.send_json(system_data)
-
                                 self.print_message(email, proxy, Fore.WHITE, 
                                     f"Provider {self.mask_account(provider_id)}"
                                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
@@ -350,6 +356,7 @@ class OasisAI:
 
                             connected = False
                             self.providers_estabilished -= 1
+                            await asyncio.sleep(5)
                             break
 
             except Exception as e:
