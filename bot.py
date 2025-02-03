@@ -139,7 +139,7 @@ class OasisAI:
         }
     
     def generate_random_operating_system(self):
-        os_list = [ "windows","linux","macOS"]
+        os_list = ["windows","linux","macOS"]
         return random.choice(os_list)
 
     def generate_random_machine_id(self):
@@ -165,21 +165,21 @@ class OasisAI:
         processors = []
         for _ in range(num_of_processors):
             processors.append({
-                "usage": {
-                    "idle": random.randint(0, 2000000000000),
-                    "kernel": random.randint(0, 10000000000),
-                    "total": random.randint(0, 2000000000000),
-                    "user": random.randint(0, 50000000000)
+                "usage":{
+                    "idle":random.randint(0, 2000000000000),
+                    "kernel":random.randint(0, 10000000000),
+                    "total":random.randint(0, 2000000000000),
+                    "user":random.randint(0, 50000000000)
                 }
             })
 
         return {
-            "archName": "x86_64",
-            "features": features,
-            "modelName": random.choice(cpu_models),
-            "numOfProcessors": num_of_processors,
-            "processors": processors,
-            "temperatures": []
+            "archName":"x86_64",
+            "features":features,
+            "modelName":random.choice(cpu_models),
+            "numOfProcessors":num_of_processors,
+            "processors":processors,
+            "temperatures":[]
         }
     
     def generate_random_id(self):
