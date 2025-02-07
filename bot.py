@@ -139,7 +139,7 @@ class OasisAI:
         }
     
     def generate_random_operating_system(self):
-        os_list = ["windows","linux","macOS"]
+        os_list = [ "windows","linux","macOS"]
         return random.choice(os_list)
 
     def generate_random_machine_id(self):
@@ -165,21 +165,21 @@ class OasisAI:
         processors = []
         for _ in range(num_of_processors):
             processors.append({
-                "usage":{
-                    "idle":random.randint(0, 2000000000000),
-                    "kernel":random.randint(0, 10000000000),
-                    "total":random.randint(0, 2000000000000),
-                    "user":random.randint(0, 50000000000)
+                "usage": {
+                    "idle": random.randint(0, 2000000000000),
+                    "kernel": random.randint(0, 10000000000),
+                    "total": random.randint(0, 2000000000000),
+                    "user": random.randint(0, 50000000000)
                 }
             })
 
         return {
-            "archName":"x86_64",
-            "features":features,
-            "modelName":random.choice(cpu_models),
-            "numOfProcessors":num_of_processors,
-            "processors":processors,
-            "temperatures":[]
+            "archName": "x86_64",
+            "features": features,
+            "modelName": random.choice(cpu_models),
+            "numOfProcessors": num_of_processors,
+            "processors": processors,
+            "temperatures": []
         }
     
     def generate_random_id(self):
@@ -366,7 +366,7 @@ class OasisAI:
                     f"{Fore.RED + Style.BRIGHT} Websocket Not Connected: {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}{str(e)}{Style.RESET_ALL}"
                 )
-                proxy = self.rotate_proxy_for_account(email) if use_proxy else None
+                proxy = self.rotate_proxy_for_account(provider_id) if use_proxy else None
                 await asyncio.sleep(5)
 
             except asyncio.CancelledError:
@@ -382,8 +382,10 @@ class OasisAI:
     async def process_accounts(self, email: str, providers: list, use_proxy: bool):
         tasks = []
         for provider in providers:
-            proxy = self.rotate_proxy_for_account(email) if use_proxy else None
-            tasks.append(self.connect_websocket(email, provider['Provider_ID'], use_proxy, proxy))
+            if provider:
+                provider_id = provider.get("Provider_ID")
+                proxy = self.get_next_proxy_for_account(provider_id) if use_proxy else None
+                tasks.append(self.connect_websocket(email, provider_id, use_proxy, proxy))
         
         await asyncio.gather(*tasks)
     
