@@ -17,7 +17,7 @@ class OasisAI:
             "Accept-language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
             "Cache-control": "no-cache",
             "Connection": "Upgrade",
-            "Host": "ws.oasis.ai",
+            "Host": "ws.distribute.ai",
             "Origin": "chrome-extension://knhbjeinoabfecakfppapfgdhcpnekmm",
             "Pragma": "no-cache",
             "Sec-Websocket-Extensions": "permessage-deflate; client_max_window_bits",
@@ -257,7 +257,7 @@ class OasisAI:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
             
     async def connect_websocket(self, email: str, provider_id: str, use_proxy: bool, proxy=None):
-        wss_url = f"wss://ws.oasis.ai/?token={provider_id}&version=0.1.20&platform=extension"
+        wss_url = f"wss://ws.distribute.ai/?token={provider_id}&version=0.1.22&platform=extension&lastConnectionId="
         connected = False
 
         while True:
@@ -270,7 +270,7 @@ class OasisAI:
                             heartbeat_data = {
                                 "type": "heartbeat",
                                 "data": {
-                                    "version":"0.1.20",
+                                    "version":"0.1.22",
                                     "mostRecentModel":"unknown",
                                     "status":"active",
                                     "inferenceState":True
@@ -300,7 +300,7 @@ class OasisAI:
                     while connected:
                         try:
                             response = await wss.receive_json()
-                            if response.get("type") == "updateSchedule":
+                            if response.get("type") == "init":
                                 self.print_message(email, proxy, Fore.WHITE, 
                                     f"Provider {self.mask_account(provider_id)}"
                                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"

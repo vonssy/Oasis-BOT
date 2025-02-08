@@ -20,7 +20,7 @@ class OasisAI:
             "Referer": "https://dashboard.distribute.ai/",
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Site": "same-site",
             "User-Agent": FakeUserAgent().random
         }
         self.proxies = []
@@ -199,7 +199,7 @@ class OasisAI:
         return provider_count, run_type, use_proxy
     
     async def user_login(self, email: str, password: str, proxy=None):
-        url = "https://api.oasis.ai/internal/auth/login"
+        url = "https://api.distribute.ai/internal/auth/login"
         data = json.dumps({"email":email, "password":password, "rememberSession":True})
         headers = {
             **self.headers,
@@ -218,7 +218,7 @@ class OasisAI:
             return self.print_message(email, proxy, Fore.RED, f"GET Access Token Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
         
     async def create_providers(self, email: str, token: str, use_proxy: bool, proxy=None, retries=5):
-        url = "https://api.oasis.ai/internal/auth/connect"
+        url = "https://api.distribute.ai/internal/auth/connect"
         data = json.dumps({"name":self.generate_random_id(), "platform":"headless"})
         headers = {
             **self.headers,
@@ -244,11 +244,10 @@ class OasisAI:
                 return self.print_message(email, proxy, Fore.RED, f"Create Providers Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
             
     async def provider_lists(self, email: str, token: str, proxy=None, retries=5):
-        url = "https://api.oasis.ai/internal/provider/providers?limit=100"
+        url = "https://api.distribute.ai/internal/provider/providers?limit=100"
         headers = {
             **self.headers,
-            "Authorization": token,
-            "Content-Type": "application/json"
+            "Authorization": token
         }
         for attempt in range(retries):
             connector = ProxyConnector.from_url(proxy) if proxy else None
@@ -266,11 +265,10 @@ class OasisAI:
                 return self.print_message(email, proxy, Fore.RED, f"GET Provider Lists Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
     async def provider_token(self, email: str, token: str, id: str, proxy=None, retries=5):
-        url = f"https://api.oasis.ai/internal/provider/token?id={id}"
+        url = f"https://api.distribute.ai/internal/provider/token?id={id}"
         headers = {
             **self.headers,
-            "Authorization": token,
-            "Content-Type": "application/json"
+            "Authorization": token
         }
         for attempt in range(retries):
             connector = ProxyConnector.from_url(proxy) if proxy else None
@@ -374,7 +372,7 @@ class OasisAI:
     
     async def main(self):
         try:
-            email = input(f"{Fore.WHITE+Style.BRIGHT}Enter Email    -> {Style.RESET_ALL}")
+            email = input(f"{Fore.WHITE+Style.BRIGHT}Enter Email    -> {Style.RESET_ALL}").strip().lower()
             password = input(f"{Fore.WHITE+Style.BRIGHT}Enter Password -> {Style.RESET_ALL}")
 
             provider_count, run_type, use_proxy_choice = self.print_question()
