@@ -257,7 +257,7 @@ class OasisAI:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
             
     async def connect_websocket(self, email: str, provider_id: str, use_proxy: bool, proxy=None):
-        wss_url = f"wss://ws.distribute.ai/?token={provider_id}&version=0.1.22&platform=extension&lastConnectionId="
+        wss_url = f"wss://ws.distribute.ai/?token={provider_id}&version=0.1.23&platform=extension&lastConnectionId="
         connected = False
 
         while True:
@@ -270,7 +270,7 @@ class OasisAI:
                             heartbeat_data = {
                                 "type": "heartbeat",
                                 "data": {
-                                    "version":"0.1.22",
+                                    "version":"0.1.23",
                                     "mostRecentModel":"unknown",
                                     "status":"active",
                                     "inferenceState":True
