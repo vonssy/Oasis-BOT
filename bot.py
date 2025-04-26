@@ -30,7 +30,7 @@ class OasisAI:
         self.proxy_index = 0
         self.account_proxies = {}
         self.providers_estabilished = 0
-        self.total_providers = 0
+        self.total_provider_ids = 0
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -228,7 +228,7 @@ class OasisAI:
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                 f"{Fore.GREEN + Style.BRIGHT}{self.providers_estabilished}{Style.RESET_ALL}"
                 f"{Fore.CYAN + Style.BRIGHT} of {Style.RESET_ALL}"
-                f"{Fore.BLUE + Style.BRIGHT}{self.total_providers}{Style.RESET_ALL}"
+                f"{Fore.BLUE + Style.BRIGHT}{self.total_provider_ids}{Style.RESET_ALL}"
                 f"{Fore.CYAN + Style.BRIGHT} Providers Connection Estabilished... {Style.RESET_ALL}",
                 end="\r",
                 flush=True
@@ -379,13 +379,12 @@ class OasisAI:
             finally:
                 await session.close()
         
-    async def process_accounts(self, email: str, providers: list, use_proxy: bool):
+    async def process_accounts(self, email: str, provider_ids: list, use_proxy: bool):
         tasks = []
-        for provider in providers:
-            if provider:
-                provider_id = provider.get("Provider_ID")
+        for provider_id in provider_ids:
+            if provider_id:
                 proxy = self.get_next_proxy_for_account(provider_id) if use_proxy else None
-                tasks.append(self.connect_websocket(email, provider_id, use_proxy, proxy))
+                tasks.append(asyncio.create_task(self.connect_websocket(email, provider_id, use_proxy, proxy)))
         
         await asyncio.gather(*tasks)
     
@@ -418,11 +417,11 @@ class OasisAI:
                 tasks = []
                 for account in accounts:
                     email = account.get('Email')
-                    providers = account.get('Providers', [])
+                    provider_ids = account.get('Provider_Ids', [])
 
-                    if email and providers:
-                        tasks.append(self.process_accounts(email, providers, use_proxy))
-                        self.total_providers += len(providers)
+                    if "@" in email and provider_ids:
+                        tasks.append(asyncio.create_task(self.process_accounts(email, provider_ids, use_proxy)))
+                        self.total_provider_ids += len(provider_ids)
 
                 tasks.append(self.print_providers_estabilished())
                 await asyncio.gather(*tasks)
