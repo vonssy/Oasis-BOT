@@ -319,7 +319,7 @@ class OasisAI:
     async def process_create_new_providers(self, token: str, email: str, accounts: dict, provider_count: int, use_proxy: bool):
         account = next((acc for acc in accounts if acc["Email"] == email), None)
         if not account:
-            account = {"Email": email, "Provider_ids": []}
+            account = {"Email": email, "Provider_Ids": []}
             accounts.append(account)
 
         proxy = self.get_next_proxy_for_account(token) if use_proxy else None
@@ -328,21 +328,20 @@ class OasisAI:
 
         for _ in range(provider_count):
             provider_id = await self.create_providers(token, proxy)
-            if provider_id:
-                if provider_id not in account["Provider_Ids"]:
-                    account["Provider_Ids"].append(provider_id)
-                else:
-                    self.print_message(token, proxy, Fore.WHITE, 
-                        f"Provider ID {self.mask_account(provider_id)} "
-                        f"{Fore.YELLOW + Style.BRIGHT}Already Exists. Skipping...{Style.RESET_ALL}"
-                    )
-                    continue
-
+            if provider_id and provider_id not in account["Provider_Ids"]:
+                account["Provider_Ids"].append(provider_id)
+            else:
                 self.print_message(token, proxy, Fore.WHITE, 
                     f"Provider ID {self.mask_account(provider_id)} "
-                    f"{Fore.GREEN + Style.BRIGHT}Have Been Created Successfully{Style.RESET_ALL}"
+                    f"{Fore.YELLOW + Style.BRIGHT}Already Exists. Skipping...{Style.RESET_ALL}"
                 )
-                success_count += 1
+                continue
+
+            self.print_message(token, proxy, Fore.WHITE, 
+                f"Provider ID {self.mask_account(provider_id)} "
+                f"{Fore.GREEN + Style.BRIGHT}Have Been Created Successfully{Style.RESET_ALL}"
+            )
+            success_count += 1
                 
             await asyncio.sleep(1)
 
