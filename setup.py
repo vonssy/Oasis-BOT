@@ -327,7 +327,7 @@ class OasisAI:
         success_count = 0
 
         for _ in range(provider_count):
-            provider_id = await self.create_providers(token, use_proxy, proxy)
+            provider_id = await self.create_providers(token, proxy)
             if provider_id:
                 if provider_id not in account["Provider_Ids"]:
                     account["Provider_Ids"].append(provider_id)
