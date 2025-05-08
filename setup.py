@@ -4,7 +4,6 @@ from aiohttp import (
     ClientTimeout
 )
 from aiohttp_socks import ProxyConnector
-from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
 import asyncio, json, random, os, pytz
@@ -13,17 +12,7 @@ wib = pytz.timezone('Asia/Jakarta')
 
 class OasisAI:
     def __init__(self) -> None:
-        self.headers = {
-            "Accept": "*/*",
-            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Origin": "https://dashboard.distribute.ai",
-            "Referer": "https://dashboard.distribute.ai/",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-site",
-            "User-Agent": FakeUserAgent().random
-        }
-        self.BASE_API = "https://api.distribute.ai"
+        self.BASE_API = "https://api.distribute.ai/internal"
         self.proxies = []
         self.proxy_index = 0
         self.account_proxies = {}
@@ -215,7 +204,7 @@ class OasisAI:
         return provider_count, run_type, use_proxy
     
     async def auth_data(self, token: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/internal/auth/data"
+        url = f"{self.BASE_API}/auth/data"
         headers = {
             **self.headers,
             "Authorization": token
@@ -237,7 +226,7 @@ class OasisAI:
                 return self.print_message(token, proxy, Fore.RED, f"GET Auth Data Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
             
     async def create_providers(self, token: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/internal/auth/connect"
+        url = f"{self.BASE_API}/auth/connect"
         data = json.dumps({"name":self.generate_random_id(), "platform":"headless"})
         headers = {
             **self.headers,
@@ -260,7 +249,7 @@ class OasisAI:
                 return self.print_message(token, proxy, Fore.RED, f"Create New Providers Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
             
     async def provider_lists(self, token: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/internal/provider/providers?limit=100"
+        url = f"{self.BASE_API}/provider/providers?limit=100"
         headers = {
             **self.headers,
             "Authorization": token
@@ -280,7 +269,7 @@ class OasisAI:
                 return self.print_message(token, proxy, Fore.RED, f"GET Provider Lists Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
     async def provider_token(self, token: str, id: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/internal/provider/token?id={id}"
+        url = f"{self.BASE_API}/provider/token?id={id}"
         headers = {
             **self.headers,
             "Authorization": token
@@ -410,6 +399,19 @@ class OasisAI:
     async def main(self):
         try:
             token = input(f"{Fore.WHITE+Style.BRIGHT}Enter Authorization Token -> {Style.RESET_ALL}").strip()
+            
+            user_agent = input(f"{Fore.WHITE+Style.BRIGHT}Enter Your User Agent -> {Style.RESET_ALL}").strip()
+
+            self.headers = {
+                "Accept": "*/*",
+                "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Origin": "https://dashboard.distribute.ai",
+                "Referer": "https://dashboard.distribute.ai/",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site",
+                "User-Agent": user_agent
+            }
 
             provider_count, run_type, use_proxy_choice = self.print_question()
 

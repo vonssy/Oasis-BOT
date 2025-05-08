@@ -16,6 +16,8 @@ Oasis - Distribute.ai BOT
   - Support Running Multi Providers Each Accounts
   - Multi Accounts With Threads
 
+### Note: A little advice, when running setup.py it is better to do it locally, not on vps or rdp. there is a high possibility of being banned, because oasis saves your session.
+
 ## Requiremnets
 
 - Make sure you have Python3.9 or higher installed and pip.
