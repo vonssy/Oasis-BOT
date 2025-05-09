@@ -309,8 +309,6 @@ class OasisAI:
             account = {"Email": email, "Provider_Ids": []}
             accounts.append(account)
 
-        proxy = self.get_next_proxy_for_account(token) if use_proxy else None
-
         count = 0
         success_count = 0
 
@@ -355,11 +353,13 @@ class OasisAI:
             await asyncio.sleep(1)
 
         self.save_accounts(accounts)
-        self.print_message(token, proxy, Fore.GREEN, 
-            f"{success_count} "
-            f"{Fore.WHITE + Style.BRIGHT}of{Style.RESET_ALL}"
-            f"{Fore.BLUE + Style.BRIGHT} {provider_count} {Style.RESET_ALL}"
-            f"{Fore.CYAN + Style.BRIGHT}Have Been Created Successfully{Style.RESET_ALL}"
+        print(
+            f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+            f"{Fore.CYAN + Style.BRIGHT}{success_count}{Style.RESET_ALL}"
+            f"{Fore.WHITE + Style.BRIGHT} of {Style.RESET_ALL}"
+            f"{Fore.BLUE + Style.BRIGHT}{provider_count}{Style.RESET_ALL}"
+            f"{Fore.GREEN + Style.BRIGHT} Providers Have Been Created and Saved Successfully. {Style.RESET_ALL}"
         )
 
     async def process_get_exiting_providers(self, token: str, email: str, accounts: dict, use_proxy: bool):
@@ -405,7 +405,7 @@ class OasisAI:
                                 
                                 self.print_message(token, provider_proxy, Fore.WHITE, 
                                     f"Provider ID {self.mask_account(provider_id)} "
-                                    f"{Fore.GREEN + Style.BRIGHT}Created Successfully{Style.RESET_ALL}"
+                                    f"{Fore.GREEN + Style.BRIGHT}Retrieved Successfully{Style.RESET_ALL}"
                                 )
                             elif provider_id and provider_id in account["Provider_Ids"]:
                                 self.print_message(token, provider_proxy, Fore.WHITE, 
@@ -415,15 +415,17 @@ class OasisAI:
                                 continue
                             else:
                                 self.print_message(token, provider_proxy, Fore.WHITE, 
-                                    f"{Fore.RED + Style.BRIGHT}Reconnect Provider Failed{Style.RESET_ALL}"
+                                    f"{Fore.RED + Style.BRIGHT}Retrieve Provider Failed{Style.RESET_ALL}"
                                 )
 
                 self.save_accounts(accounts)
-                self.print_message(token, proxy, Fore.GREEN, 
-                    f"{success_count} "
-                    f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
-                    f"{Fore.BLUE + Style.BRIGHT} {len(providers)} {Style.RESET_ALL}"
-                    f"{Fore.CYAN + Style.BRIGHT}Providers Have Been Saved Successfully{Style.RESET_ALL}"
+                print(
+                    f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.CYAN + Style.BRIGHT}{success_count}{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} of {Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT}{len(providers)}{Style.RESET_ALL}"
+                    f"{Fore.GREEN + Style.BRIGHT} Providers Have Been Saved Successfully {Style.RESET_ALL}"
                 )
 
             else:
