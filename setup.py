@@ -217,8 +217,7 @@ class OasisAI:
                         if response.status == 401:
                             return self.print_message(token, proxy, Fore.RED, f"GET Auth Data Failed: {Fore.YELLOW+Style.BRIGHT}Invalid Token or Already Expired")
                         response.raise_for_status()
-                        result = await response.json()
-                        return result["email"]
+                        return await response.json()
             except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
@@ -240,8 +239,7 @@ class OasisAI:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.post(url=url, headers=headers, data=data) as response:
                         response.raise_for_status()
-                        result = await response.json()
-                        return result["token"]
+                        return await response.json()
             except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
@@ -260,8 +258,7 @@ class OasisAI:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.get(url=url, headers=headers) as response:
                         response.raise_for_status()
-                        result = await response.json()
-                        return result["results"]
+                        return await response.json()
             except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
@@ -280,8 +277,7 @@ class OasisAI:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.get(url=url, headers=headers) as response:
                         response.raise_for_status()
-                        result = await response.json()
-                        return result["token"]
+                        return await response.json()
             except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
@@ -290,14 +286,16 @@ class OasisAI:
             
     async def process_get_auth_data(self, token: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(token) if use_proxy else None
-        email = None
-        while email is None:
-            email = await self.auth_data(token, proxy)
-            if not email:
+        auth = None
+        while auth is None:
+            auth = await self.auth_data(token, proxy)
+            if not auth:
                 await asyncio.sleep(5)
                 proxy = self.rotate_proxy_for_account(token) if use_proxy else None
                 continue
             
+            email = auth.get("email")
+
             self.print_message(token, proxy, Fore.GREEN, "GET Auth Data Success "
                 f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
                 f"{Fore.CYAN+Style.BRIGHT} Email: {Style.RESET_ALL}"
@@ -331,26 +329,29 @@ class OasisAI:
                 flush=True
             )
 
-            provider_id = await self.create_providers(token, provider_proxy)
-            if provider_id and provider_id not in account["Provider_Ids"]:
-                account["Provider_Ids"].append(provider_id)
-                self.print_message(token, provider_proxy, Fore.WHITE, 
-                    f"Provider ID {self.mask_account(provider_id)} "
-                    f"{Fore.GREEN + Style.BRIGHT}Created Successfully{Style.RESET_ALL}"
-                )
-            else:
-                self.print_message(token, proxy, Fore.WHITE, 
-                    f"Provider ID {self.mask_account(provider_id)} "
-                    f"{Fore.YELLOW + Style.BRIGHT}Already Exists. Skipping...{Style.RESET_ALL}"
-                )
-                continue
+            create = await self.create_providers(token, provider_proxy)
+            if create:
+                provider_id = create.get("token")
 
-            self.print_message(token, proxy, Fore.WHITE, 
-                f"Provider ID {self.mask_account(provider_id)} "
-                f"{Fore.GREEN + Style.BRIGHT}Have Been Created Successfully{Style.RESET_ALL}"
-            )
-            success_count += 1
-                
+                if provider_id and provider_id not in account["Provider_Ids"]:
+                    account["Provider_Ids"].append(provider_id)
+                    success_count += 1
+                    
+                    self.print_message(token, provider_proxy, Fore.WHITE, 
+                        f"Provider ID {self.mask_account(provider_id)} "
+                        f"{Fore.GREEN + Style.BRIGHT}Created Successfully{Style.RESET_ALL}"
+                    )
+                elif provider_id and provider_id in account["Provider_Ids"]:
+                    self.print_message(token, provider_proxy, Fore.WHITE, 
+                        f"Provider ID {self.mask_account(provider_id)} "
+                        f"{Fore.YELLOW + Style.BRIGHT}Already Exists. Skipping...{Style.RESET_ALL}"
+                    )
+                    continue
+                else:
+                    self.print_message(token, provider_proxy, Fore.WHITE, 
+                        f"{Fore.RED + Style.BRIGHT}Create Provider Failed{Style.RESET_ALL}"
+                    )
+            
             await asyncio.sleep(1)
 
         self.save_accounts(accounts)
@@ -369,45 +370,64 @@ class OasisAI:
         
         proxy = self.get_next_proxy_for_account(token) if use_proxy else None
 
-        providers = await self.provider_lists(token, proxy)
-        if providers:
-            provider_count = 0
-            success_count = 0
+        provider_lists = await self.provider_lists(token, proxy)
+        if provider_lists:
+            providers = provider_lists.get("results", [])
 
-            for provider in providers:
-                if provider:
-                    id = provider.get("id")
-                    provider_count += 1
-                    provider_proxy = self.get_next_proxy_for_account(id) if use_proxy else None
+            if providers:
+                provider_count = 0
+                success_count = 0
 
-                    print(
-                        f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
-                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.CYAN + Style.BRIGHT}Processing:{Style.RESET_ALL}"
-                        f"{Fore.GREEN + Style.BRIGHT} {provider_count} {Style.RESET_ALL}"
-                        f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
-                        f"{Fore.BLUE + Style.BRIGHT} {len(providers)} {Style.RESET_ALL}",
-                        end="\r",
-                        flush=True
-                    )
+                for provider in providers:
+                    if provider:
+                        id = provider.get("id")
+                        provider_count += 1
+                        provider_proxy = self.get_next_proxy_for_account(id) if use_proxy else None
 
-                    provider_id = await self.provider_token(token, id, provider_proxy)
-                    if provider_id and provider_id not in account["Provider_Ids"]:
-                        account["Provider_Ids"].append(provider_id)
-                        self.print_message(token, provider_proxy, Fore.WHITE, 
-                            f"Provider ID {self.mask_account(provider_id)} "
-                            f"{Fore.GREEN + Style.BRIGHT}Reconnect Successfully{Style.RESET_ALL}"
+                        print(
+                            f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}Processing:{Style.RESET_ALL}"
+                            f"{Fore.GREEN + Style.BRIGHT} {provider_count} {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
+                            f"{Fore.BLUE + Style.BRIGHT} {len(providers)} {Style.RESET_ALL}",
+                            end="\r",
+                            flush=True
                         )
 
-                        success_count += 1
+                        reconnect = await self.provider_token(token, id, provider_proxy)
+                        if reconnect:
+                            provider_id = reconnect.get("token")
 
-        self.save_accounts(accounts)
-        self.print_message(token, proxy, Fore.GREEN, 
-            f"{success_count} "
-            f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
-            f"{Fore.BLUE + Style.BRIGHT} {len(providers)} {Style.RESET_ALL}"
-            f"{Fore.CYAN + Style.BRIGHT}Providers Have Been Saved Successfully{Style.RESET_ALL}"
-        )
+                            if provider_id and provider_id not in account["Provider_Ids"]:
+                                account["Provider_Ids"].append(provider_id)
+                                success_count += 1
+                                
+                                self.print_message(token, provider_proxy, Fore.WHITE, 
+                                    f"Provider ID {self.mask_account(provider_id)} "
+                                    f"{Fore.GREEN + Style.BRIGHT}Created Successfully{Style.RESET_ALL}"
+                                )
+                            elif provider_id and provider_id in account["Provider_Ids"]:
+                                self.print_message(token, provider_proxy, Fore.WHITE, 
+                                    f"Provider ID {self.mask_account(provider_id)} "
+                                    f"{Fore.YELLOW + Style.BRIGHT}Already Exists. Skipping...{Style.RESET_ALL}"
+                                )
+                                continue
+                            else:
+                                self.print_message(token, provider_proxy, Fore.WHITE, 
+                                    f"{Fore.RED + Style.BRIGHT}Reconnect Provider Failed{Style.RESET_ALL}"
+                                )
+
+                self.save_accounts(accounts)
+                self.print_message(token, proxy, Fore.GREEN, 
+                    f"{success_count} "
+                    f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT} {len(providers)} {Style.RESET_ALL}"
+                    f"{Fore.CYAN + Style.BRIGHT}Providers Have Been Saved Successfully{Style.RESET_ALL}"
+                )
+
+            else:
+                self.print_message(token, proxy, Fore.YELLOW, "No Provider Found")
     
     async def process_accounts(self, token: str, provider_count: int, run_type: int, use_proxy: bool):
         email = await self.process_get_auth_data(token, use_proxy)
