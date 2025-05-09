@@ -313,12 +313,31 @@ class OasisAI:
 
         proxy = self.get_next_proxy_for_account(token) if use_proxy else None
 
+        count = 0
         success_count = 0
 
-        for _ in range(provider_count):
-            provider_id = await self.create_providers(token, proxy)
+        for i in range(provider_count):
+            count = i + 1
+            provider_proxy = self.get_next_proxy_for_account(count) if use_proxy else None
+
+            print(
+                f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                f"{Fore.CYAN + Style.BRIGHT}Processing:{Style.RESET_ALL}"
+                f"{Fore.GREEN + Style.BRIGHT} {count} {Style.RESET_ALL}"
+                f"{Fore.CYAN + Style.BRIGHT}of{Style.RESET_ALL}"
+                f"{Fore.BLUE + Style.BRIGHT} {provider_count} {Style.RESET_ALL}",
+                end="\r",
+                flush=True
+            )
+
+            provider_id = await self.create_providers(token, provider_proxy)
             if provider_id and provider_id not in account["Provider_Ids"]:
                 account["Provider_Ids"].append(provider_id)
+                self.print_message(token, provider_proxy, Fore.WHITE, 
+                    f"Provider ID {self.mask_account(provider_id)} "
+                    f"{Fore.GREEN + Style.BRIGHT}Created Successfully{Style.RESET_ALL}"
+                )
             else:
                 self.print_message(token, proxy, Fore.WHITE, 
                     f"Provider ID {self.mask_account(provider_id)} "
@@ -359,6 +378,7 @@ class OasisAI:
                 if provider:
                     id = provider.get("id")
                     provider_count += 1
+                    provider_proxy = self.get_next_proxy_for_account(id) if use_proxy else None
 
                     print(
                         f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
@@ -371,9 +391,13 @@ class OasisAI:
                         flush=True
                     )
 
-                    provider_id = await self.provider_token(token, id, proxy)
+                    provider_id = await self.provider_token(token, id, provider_proxy)
                     if provider_id and provider_id not in account["Provider_Ids"]:
                         account["Provider_Ids"].append(provider_id)
+                        self.print_message(token, provider_proxy, Fore.WHITE, 
+                            f"Provider ID {self.mask_account(provider_id)} "
+                            f"{Fore.GREEN + Style.BRIGHT}Reconnect Successfully{Style.RESET_ALL}"
+                        )
 
                         success_count += 1
 
